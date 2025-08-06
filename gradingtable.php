@@ -451,8 +451,6 @@ if ($centercodefieldid) {
         $columns[] = 'studentid';
 $headers[] = get_string('studentid', 'assign'); // or hardcode as 'Student ID'
 
-$columns[] = 'fullname';
-$headers[] = get_string('fullname'); 
         // User picture.
         if ($this->hasviewblind || !$this->assignment->is_blind_marking()) {
             if (!$this->is_downloading()) {
