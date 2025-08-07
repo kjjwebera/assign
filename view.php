@@ -52,4 +52,5 @@ $assign->update_effective_access($USER->id);
 
 // Get the assign class to
 // render the page.
+//started batch code filter for first comment
 echo $assign->view(optional_param('action', '', PARAM_ALPHA));
