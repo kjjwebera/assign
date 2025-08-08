@@ -44,6 +44,7 @@ class mod_assign_grading_options_form extends moodleform {
         $mform = $this->_form;
         $instance = $this->_customdata;
         $dirtyclass = array('class' => 'ignoredirty');
+        //
 
         $mform->addElement('header', 'general', get_string('gradingoptions', 'assign'));
         // Visible elements.
@@ -70,18 +71,44 @@ class mod_assign_grading_options_form extends moodleform {
         if ($instance['submissionsenabled']) {
             $batchcodefield = $DB->get_record('user_info_field', ['shortname' => 'batchcode'], '*', MUST_EXIST);
             //
-            $batchcodearry = $DB->get_records_sql_menu("
-                SELECT DISTINCT uid.id, uid.data
-                FROM {user_info_data} uid
-                WHERE uid.fieldid = :fieldid AND uid.data IS NOT NULL AND uid.data <> ''
-                ORDER BY uid.data ASC
-            ", ['fieldid' => $batchcodefield->id]);
+            if(!is_siteadmin($USER)){ // teacher batch 
+                //echo 'ddd';die;
+                $batchcodearry = $DB->get_recordset_sql("
+                                SELECT DISTINCT uid.data
+                                FROM {user_info_data} uid
+                                WHERE uid.fieldid = :fieldid AND uid.userid = :userid AND uid.data IS NOT NULL AND uid.data <> ''
+                                GROUP BY uid.data
+                                ORDER BY uid.data ASC
+                            ", ['fieldid' => $batchcodefield->id,'userid'=>$USER->id]);
+            }else{
+                $batchcodearry = $DB->get_recordset_sql("
+                                    SELECT DISTINCT uid.data
+                                    FROM {user_info_data} uid
+                                    WHERE uid.fieldid = :fieldid AND uid.data IS NOT NULL AND uid.data <> ''
+                                    GROUP BY uid.data
+                                    ORDER BY uid.data ASC
+                                ", ['fieldid' => $batchcodefield->id]);
+            }
             //
+            $main_loop = array();
+            foreach($batchcodearry as $rec){
+                $parts = explode(',', $rec->data); // split by comma
+                if(!is_siteadmin($USER)){
+                   $main_loop['all'] = 'ALL';
+                }
+                
+                foreach ($parts as $part) {
+                    $main_loop[trim($part)] = trim($part); // remove extra spaces
+                }
+            }
+            $batcharr = array_unique($main_loop);
+            //print_r($batcharr);die;
             $options = array(                                                                                
                 'multiple' => true,                                                  
-                'noselectionstring' => get_string('noselection', 'assign'),                                                                
+                'noselectionstring' => get_string('noselection', 'assign'),
+                'class' => 'ignoredirty',         
             );         
-            $mform->addElement('autocomplete', 'batchcodefilter', get_string('batchcodefilter', 'assign'), $batchcodearry, $options);
+            $mform->addElement('autocomplete', 'batchcodefilter', get_string('batchcodefilter', 'assign'), $batcharr, $options);
             $mform->setType('batchcodefilter', PARAM_TEXT);
         }
         //ENDS BATCH FILTER
@@ -126,6 +153,7 @@ class mod_assign_grading_options_form extends moodleform {
 
         // Buttons.
         $this->add_action_buttons(false, get_string('updatetable', 'assign'));
+        $mform->disable_form_change_checker();
     }
 }
 

@@ -303,6 +303,7 @@ class assign_grading_table extends table_sql implements renderable {
 
         // The filters do not make sense when there are no submissions, so do not apply them.
         if ($this->assignment->is_any_submission_plugin_enabled()) {
+          //print_object($batchcodefilter);die;
             if ($filter == ASSIGN_FILTER_SUBMITTED) {
                 $where .= ' AND (s.timemodified IS NOT NULL AND
                                  s.status = :submitted) ';
@@ -334,16 +335,119 @@ class assign_grading_table extends table_sql implements renderable {
                 $params['userid'] = $userfilter;
             }
             //batach code filter changes of sql starts
-            if($batchcodefilter){
-                $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
-                $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and id in(".$batchcodefilter.")";
-                $batch_results = $DB->get_records_sql($batchsql);
-                $mainset = array();
-                foreach ($batch_results as $rec) {
-                  $mainset[] = $rec->userid;
+            if($batchcodefilter && is_siteadmin($USER)){ //site admin and batch code
+                $selected_values = explode(',',trim($batchcodefilter));
+                //die;
+                if($selected_values && is_array($selected_values)){
+                  $final_result_set = array();
+                  foreach($selected_values as $key=>$data){
+                    $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                    $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and data in('".$data."')";
+                    //echo $batchsql;die;
+                    $batch_results = $DB->get_records_sql($batchsql);
+                    //$mainset = array();
+                    foreach ($batch_results as $rec) {
+                      $mainset = $rec->userid;
+                      $final_result_set[] = $mainset;
+                    }
+                  }
                 }
-                $where .= ' AND u.id in ('.implode(',',$mainset).')';
+                //print_r($final_result_set);die;
+                $where .= ' AND u.id in ('.implode(',',$final_result_set).')';
                 //echo $where;die;
+            }else if($batchcodefilter && !is_siteadmin($USER)){ // teacher batch code filter
+                $selected_values = explode(',',trim($batchcodefilter));
+                //die;
+                if($selected_values && is_array($selected_values)){
+                  $final_result_set = array();
+                  foreach($selected_values as $key=>$data){
+                    if($data == 'all'){ // all selected by teacher
+                        $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                        $batchcodearry = $DB->get_recordset_sql("
+                                        SELECT DISTINCT uid.data
+                                        FROM {user_info_data} uid
+                                        WHERE uid.fieldid = :fieldid AND uid.userid = :userid AND uid.data IS NOT NULL AND uid.data <> ''
+                                        GROUP BY uid.data
+                                        ORDER BY uid.data ASC
+                                    ", ['fieldid' => $fieldid,'userid'=>$USER->id]);
+                        $main_loop = array();
+                        foreach($batchcodearry as $rec){
+                            $parts = explode(',', $rec->data); // split by comma
+                            foreach ($parts as $part) {
+                                $main_loop[] = trim($part); // remove extra spaces
+                            }
+                        }
+                        $batcharr = array_unique($main_loop);
+                        //print_r($batcharr);die;
+                        $selected_values = $batcharr;
+                        //die;
+                        if($selected_values && is_array($selected_values)){
+                          $final_result_set = array();
+                          foreach($selected_values as $key=>$data){
+                            $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                            $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and data in('".$data."')";
+                            //echo $batchsql;die;
+                            $batch_results = $DB->get_records_sql($batchsql);
+                            //$mainset = array();
+                            foreach ($batch_results as $rec) {
+                              $mainset = $rec->userid;
+                              $final_result_set[] = $mainset;
+                            }
+                          }
+                        }
+                        //print_r($final_result_set);die;
+                        $where .= ' AND u.id in ('.implode(',',$final_result_set).')';
+                        break;
+                    }
+                    $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                    $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and data in('".$data."')";
+                    //echo $batchsql;die;
+                    $batch_results = $DB->get_records_sql($batchsql);
+                    //$mainset = array();
+                    foreach ($batch_results as $rec) {
+                      $mainset = $rec->userid;
+                      $final_result_set[] = $mainset;
+                    }
+                  }
+                }
+                //print_r($final_result_set);die;
+                $where .= ' AND u.id in ('.implode(',',$final_result_set).')';
+            }else if(!$batchcodefilter && !is_siteadmin($USER)){ //for teacher defualt
+                $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                $batchcodearry = $DB->get_recordset_sql("
+                                SELECT DISTINCT uid.data
+                                FROM {user_info_data} uid
+                                WHERE uid.fieldid = :fieldid AND uid.userid = :userid AND uid.data IS NOT NULL AND uid.data <> ''
+                                GROUP BY uid.data
+                                ORDER BY uid.data ASC
+                            ", ['fieldid' => $fieldid,'userid'=>$USER->id]);
+                $main_loop = array();
+                foreach($batchcodearry as $rec){
+                    $parts = explode(',', $rec->data); // split by comma
+                    foreach ($parts as $part) {
+                        $main_loop[] = trim($part); // remove extra spaces
+                    }
+                }
+                $batcharr = array_unique($main_loop);
+                //print_r($batcharr);die;
+                $selected_values = $batcharr;
+                //die;
+                if($selected_values && is_array($selected_values)){
+                  $final_result_set = array();
+                  foreach($selected_values as $key=>$data){
+                    $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                    $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and data in('".$data."')";
+                    //echo $batchsql;die;
+                    $batch_results = $DB->get_records_sql($batchsql);
+                    //$mainset = array();
+                    foreach ($batch_results as $rec) {
+                      $mainset = $rec->userid;
+                      $final_result_set[] = $mainset;
+                    }
+                  }
+                }
+                //print_r($final_result_set);die;
+                $where .= ' AND u.id in ('.implode(',',$final_result_set).')';
             }
             //batach code filter changes of sql ends
 
