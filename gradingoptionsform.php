@@ -40,6 +40,7 @@ class mod_assign_grading_options_form extends moodleform {
      * Define this form - called from the parent constructor.
      */
     public function definition() {
+        global $DB,$USER;
         $mform = $this->_form;
         $instance = $this->_customdata;
         $dirtyclass = array('class' => 'ignoredirty');
@@ -65,6 +66,25 @@ class mod_assign_grading_options_form extends moodleform {
         if ($instance['submissionsenabled']) {
             $mform->addElement('select', 'filter', get_string('filter', 'assign'), $options, $dirtyclass);
         }
+        //added a filter Batch code UI
+        if ($instance['submissionsenabled']) {
+            $batchcodefield = $DB->get_record('user_info_field', ['shortname' => 'batchcode'], '*', MUST_EXIST);
+            //
+            $batchcodearry = $DB->get_records_sql_menu("
+                SELECT DISTINCT uid.id, uid.data
+                FROM {user_info_data} uid
+                WHERE uid.fieldid = :fieldid AND uid.data IS NOT NULL AND uid.data <> ''
+                ORDER BY uid.data ASC
+            ", ['fieldid' => $batchcodefield->id]);
+            //
+            $options = array(                                                                                
+                'multiple' => true,                                                  
+                'noselectionstring' => get_string('noselection', 'assign'),                                                                
+            );         
+            $mform->addElement('autocomplete', 'batchcodefilter', get_string('batchcodefilter', 'assign'), $batchcodearry, $options);
+            $mform->setType('batchcodefilter', PARAM_TEXT);
+        }
+        //ENDS BATCH FILTER
         if (!empty($instance['markingallocationopt'])) {
             $markingfilter = get_string('markerfilter', 'assign');
             $mform->addElement('select', 'markerfilter', $markingfilter, $instance['markingallocationopt'], $dirtyclass);

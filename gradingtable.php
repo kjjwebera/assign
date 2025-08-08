@@ -78,6 +78,7 @@ class assign_grading_table extends table_sql implements renderable {
     public function __construct(assign $assignment,
                                 $perpage,
                                 $filter,
+                                $batchcodefilter,
                                 $rowoffset,
                                 $quickgrading,
                                 $downloadfilename = null) {
@@ -332,6 +333,20 @@ class assign_grading_table extends table_sql implements renderable {
                 $where .= ' AND (u.id = :userid)';
                 $params['userid'] = $userfilter;
             }
+            //batach code filter changes of sql starts
+            if($batchcodefilter){
+                $fieldid = $DB->get_field('user_info_field','id',['shortname'=>'batchcode']);
+                $batchsql = "select userid from {user_info_data} where fieldid=".$fieldid." and id in(".$batchcodefilter.")";
+                $batch_results = $DB->get_records_sql($batchsql);
+                $mainset = array();
+                foreach ($batch_results as $rec) {
+                  $mainset[] = $rec->userid;
+                }
+                $where .= ' AND u.id in ('.implode(',',$mainset).')';
+                //echo $where;die;
+            }
+            //batach code filter changes of sql ends
+
         }
 
         if ($this->assignment->get_instance()->markingworkflow &&

@@ -122,6 +122,7 @@ M.mod_assign.init_grading_table = function(Y) {
 
 M.mod_assign.init_grading_options = function(Y) {
     Y.use('node', function(Y) {
+        var form = Y.one('form'); // Or use specific form ID
         var paginationelement = Y.one('#id_perpage');
         paginationelement.on('change', function(e) {
             Y.one('form.gradingoptionsform').submit();
@@ -132,6 +133,16 @@ M.mod_assign.init_grading_options = function(Y) {
                 Y.one('form.gradingoptionsform').submit();
             });
         }
+
+        var batchfilterelement = Y.one('#id_batchcodefilter');
+        if (batchfilterelement) {
+
+            batchfilterelement.on('change', function(e) {
+                Y.one('form.gradingoptionsform').submit();
+            });
+
+        }
+        
         var markerfilterelement = Y.one('#id_markerfilter');
         if (markerfilterelement) {
             markerfilterelement.on('change', function(e) {

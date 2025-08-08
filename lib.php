@@ -1731,6 +1731,12 @@ function mod_assign_user_preferences() {
         'null' => NULL_NOT_ALLOWED,
         'default' => ''
     );
+    // batch filter to be set here
+    $preferences['assign_batchcodefilter'] = array(
+        'type' => PARAM_ALPHA,
+        'null' => NULL_NOT_ALLOWED,
+        'default' => ''
+    );
     $preferences['assign_workflowfilter'] = array(
         'type' => PARAM_ALPHA,
         'null' => NULL_NOT_ALLOWED,

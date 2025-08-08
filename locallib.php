@@ -4477,6 +4477,10 @@ class assign {
 
         $perpage = $this->get_assign_perpage();
         $filter = get_user_preferences('assign_filter', '');
+        //
+        $batchcodefilter = get_user_preferences('assign_batchcodefilter', '');
+        //print_object($batchcodefilter);die;
+        //
         $markerfilter = get_user_preferences('assign_markerfilter', '');
         $workflowfilter = get_user_preferences('assign_workflowfilter', '');
         $controller = $gradingmanager->get_active_controller();
@@ -4545,6 +4549,7 @@ class assign {
         $gradingoptionsdata = new stdClass();
         $gradingoptionsdata->perpage = $perpage;
         $gradingoptionsdata->filter = $filter;
+        $gradingoptionsdata->batchcodefilter = $batchcodefilter;
         $gradingoptionsdata->markerfilter = $markerfilter;
         $gradingoptionsdata->workflowfilter = $workflowfilter;
         $gradingoptionsform->set_data($gradingoptionsdata);
@@ -4588,7 +4593,7 @@ class assign {
 
             $o .= $this->get_renderer()->render(new assign_form('quickgradingform', $quickgradingform));
         } else {
-            $gradingtable = new assign_grading_table($this, $perpage, $filter, 0, false);
+            $gradingtable = new assign_grading_table($this, $perpage, $filter,$batchcodefilter, 0, false); //added batchfilter options to class
             $o .= $this->get_renderer()->render($gradingtable);
         }
 
@@ -7182,6 +7187,11 @@ class assign {
             set_user_preference('assign_perpage', $formdata->perpage);
             if (isset($formdata->filter)) {
                 set_user_preference('assign_filter', $formdata->filter);
+            }
+            //
+            if (isset($formdata->batchcodefilter)) {
+                //print_object($formdata->batchcodefilter);die;
+                set_user_preference('assign_batchcodefilter', implode(',',$formdata->batchcodefilter));
             }
             if (isset($formdata->markerfilter)) {
                 set_user_preference('assign_markerfilter', $formdata->markerfilter);
