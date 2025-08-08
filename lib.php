@@ -1768,3 +1768,223 @@ function mod_assign_get_path_from_pluginfile(string $filearea, array $args) : ar
         'filepath' => $filepath,
     ];
 }
+
+/**
+ * Export assignment grading data to CSV
+ * @param int $assignid Assignment ID
+ * @param array $userids User IDs to export (optional)
+ * @return string CSV content
+ */
+function assign_export_grading_csv($assignid, $userids = null) {
+    global $DB, $CFG;
+    
+    $assign = $DB->get_record('assign', array('id' => $assignid), '*', MUST_EXIST);
+    $cm = get_coursemodule_from_instance('assign', $assignid, $assign->course, false, MUST_EXIST);
+    $context = context_module::instance($cm->id);
+    
+    // Get grading data
+    $gradingdata = assign_get_grading_export_data($assignid, $userids);
+    
+    // Create CSV content
+    $csvdata = array();
+    
+    // Headers
+    $headers = array(
+        get_string('fullname'),
+        get_string('email'),
+        get_string('grade', 'assign'),
+        get_string('feedback', 'assign'),
+        get_string('submissionstatus', 'assign'),
+        get_string('timesubmitted', 'assign'),
+        get_string('timegraded', 'assign')
+    );
+    $csvdata[] = $headers;
+    
+    // Data rows
+    foreach ($gradingdata as $row) {
+        $csvdata[] = array(
+            $row->fullname,
+            $row->email,
+            $row->grade,
+            strip_tags($row->feedback),
+            $row->status,
+            $row->timesubmitted ? userdate($row->timesubmitted) : '',
+            $row->timegraded ? userdate($row->timegraded) : ''
+        );
+    }
+    
+    return format_csv_data($csvdata);
+}
+
+/**
+ * Get grading data for export
+ * @param int $assignid Assignment ID
+ * @param array $userids User IDs (optional)
+ * @return array Grading data
+ */
+function assign_get_grading_export_data($assignid, $userids = null) {
+    global $DB;
+    
+    $sql = "SELECT u.id, 
+                   u.firstname, 
+                   u.lastname,
+                   CONCAT(u.firstname, ' ', u.lastname) as fullname,
+                   u.email,
+                   g.grade,
+                   f.commenttext as feedback,
+                   s.status,
+                   s.timemodified as timesubmitted,
+                   g.timemodified as timegraded
+            FROM {user} u
+            LEFT JOIN {assign_submission} s ON u.id = s.userid AND s.assignment = :assignid AND s.latest = 1
+            LEFT JOIN {assign_grades} g ON u.id = g.userid AND g.assignment = :assignid2
+            LEFT JOIN {assignfeedback_comments} f ON g.id = f.grade AND f.assignment = :assignid3
+            WHERE u.id IN (
+                SELECT DISTINCT userid 
+                FROM {assign_submission} 
+                WHERE assignment = :assignid4
+                UNION
+                SELECT DISTINCT userid 
+                FROM {assign_grades} 
+                WHERE assignment = :assignid5
+            )";
+    
+    $params = array(
+        'assignid' => $assignid,
+        'assignid2' => $assignid,
+        'assignid3' => $assignid,
+        'assignid4' => $assignid,
+        'assignid5' => $assignid
+    );
+    
+    if ($userids) {
+        list($insql, $inparams) = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+        $sql .= " AND u.id $insql";
+        $params = array_merge($params, $inparams);
+    }
+    
+    return $DB->get_records_sql($sql, $params);
+}
+
+/**
+ * Format data as CSV
+ * @param array $data Array of arrays containing CSV data
+ * @return string CSV formatted string
+ */
+function format_csv_data($data) {
+    $output = '';
+    foreach ($data as $row) {
+        $output .= '"' . implode('","', $row) . '"' . "\n";
+    }
+    return $output;
+}
+
+/**
+ * Download grading data as CSV
+ * @param object $assign Assignment instance
+ * @param object $cm Course module object  
+ * @param object $context Context object
+ */
+function assign_download_grading_csv($assign, $cm, $context) {
+    global $DB;
+
+    try {
+        error_log('CSV Download: Starting function');
+
+        // Get all users with either submission or grade
+        $sql = "SELECT DISTINCT u.*
+                FROM {user} u
+                LEFT JOIN {assign_submission} s ON u.id = s.userid AND s.assignment = :assignid1
+                LEFT JOIN {assign_grades} g ON u.id = g.userid AND g.assignment = :assignid2
+                WHERE s.id IS NOT NULL OR g.id IS NOT NULL";
+
+        $params = [
+            'assignid1' => $assign->get_instance()->id,
+            'assignid2' => $assign->get_instance()->id
+        ];
+
+        $participants = $DB->get_records_sql($sql, $params);
+
+        if (empty($participants)) {
+            error_log('CSV Download: No participants found');
+            die('No participants found');
+        }
+
+        $csvdata = [];
+
+        // CSV Headers
+        $headers = [
+            'Full Name',
+            'ID Number',
+            'Email',
+            'Grade',
+            'Feedback',
+            'Submission Status',
+            'Time Submitted',
+            'Time Graded'
+        ];
+        $csvdata[] = $headers;
+
+        // Iterate participants
+        foreach ($participants as $participant) {
+            $userid = $participant->id;
+
+            $submission = $assign->get_user_submission($userid, false);
+            $grade = $assign->get_user_grade($userid, false);
+
+            $status = ($submission && !empty($submission->status)) ? $submission->status : 'No submission';
+
+            // Get feedback
+            $feedback = '';
+            if ($grade && $grade->id) {
+                $feedbackplugins = $assign->get_feedback_plugins();
+                foreach ($feedbackplugins as $plugin) {
+                    if ($plugin->is_enabled() && $plugin->is_visible()) {
+                        $pluginfeedback = $plugin->text_for_gradebook($grade);
+                        if (!empty($pluginfeedback)) {
+                            $feedback .= strip_tags($pluginfeedback) . ' ';
+                        }
+                    }
+                }
+                $feedback = trim($feedback);
+            }
+
+            $gradevalue = ($grade && $grade->grade >= 0) ? $grade->grade : '';
+
+            $csvdata[] = [
+                fullname($participant),
+                $participant->idnumber ?? '',
+                $participant->email ?? '',
+                $gradevalue,
+                $feedback,
+                $status,
+                $submission && $submission->timemodified ? userdate($submission->timemodified) : '',
+                $grade && $grade->timemodified ? userdate($grade->timemodified) : ''
+            ];
+        }
+
+        // Generate CSV content
+        $csvContent = '';
+        foreach ($csvdata as $row) {
+            $csvContent .= '"' . implode('","', array_map(function($field) {
+                return str_replace('"', '""', $field);
+            }, $row)) . '"' . "\n";
+        }
+
+        // Prepare download
+        $assignmentname = $assign->get_instance()->name;
+        $filename = clean_filename($assignmentname . '_grades_' . date('Y-m-d')) . '.csv';
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($csvContent));
+        header('Cache-Control: no-cache, must-revalidate');
+        header('Pragma: no-cache');
+
+        echo $csvContent;
+
+    } catch (Exception $e) {
+        error_log('CSV Download Error: ' . $e->getMessage());
+        die('Download error: ' . $e->getMessage());
+    }
+}

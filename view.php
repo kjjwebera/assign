@@ -35,11 +35,25 @@ $context = context_module::instance($cm->id);
 
 require_capability('mod/assign:view', $context);
 
+$action = optional_param('action', '', PARAM_ALPHA);
+$rownum = optional_param('rownum', 0, PARAM_INT);
+$download = optional_param('download', '', PARAM_ALPHA);
 $assign = new assign($context, $cm, $course);
 $urlparams = array('id' => $id,
                   'action' => optional_param('action', '', PARAM_ALPHA),
                   'rownum' => optional_param('rownum', 0, PARAM_INT),
                   'useridlistid' => optional_param('useridlistid', $assign->get_useridlist_key_id(), PARAM_ALPHANUM));
+
+                  if ($download && $action == 'grading') {
+    error_log('Download requested: ' . $download); // Debug line
+    require_capability('mod/assign:grade', $context);
+    
+    if ($download == 'csv') {
+        error_log('Starting CSV download'); // Debug line
+        assign_download_grading_csv($assign, $cm, $context);
+        exit;
+    }
+}
 
 $url = new moodle_url('/mod/assign/view.php', $urlparams);
 $PAGE->set_url($url);
