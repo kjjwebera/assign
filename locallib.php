@@ -4589,6 +4589,21 @@ class assign {
             $o .= $this->get_renderer()->render(new assign_form('quickgradingform', $quickgradingform));
         } else {
             $gradingtable = new assign_grading_table($this, $perpage, $filter, 0, false);
+            $downloadurl = new moodle_url('/mod/assign/view.php', [
+                'id' => $cmid,
+                'action' => 'grading',
+                'download' => 'csv'
+            ]);
+
+            $buttonhtml = html_writer::start_div('download-csv-button', ['style' => 'margin: 1em 0;']);
+            $buttonhtml .= html_writer::link(
+                $downloadurl,
+                get_string('downloadcsv', 'assign'),
+                ['class' => 'btn btn-primary', 'style' => 'float: right;']
+            );
+            $buttonhtml .= html_writer::end_div();
+
+            $o .= $buttonhtml;
             $o .= $this->get_renderer()->render($gradingtable);
         }
 
