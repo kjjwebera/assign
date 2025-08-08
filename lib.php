@@ -1921,6 +1921,7 @@ function assign_download_grading_csv($assign, $cm, $context) {
             'Feedback',
             'Submission Status',
             'Time Submitted',
+            'Online Text',
             'Time Graded'
         ];
         $csvdata[] = $headers;
@@ -1951,6 +1952,20 @@ function assign_download_grading_csv($assign, $cm, $context) {
 
             $gradevalue = ($grade && $grade->grade >= 0) ? $grade->grade : '';
 
+            // Get online text submission
+            $onlinetext = '';
+            if ($submission) {
+                $onlinetextdata = $DB->get_record('assignsubmission_onlinetext', 
+                    ['assignment' => $assign->get_instance()->id, 'submission' => $submission->id]);
+                if ($onlinetextdata && !empty($onlinetextdata->onlinetext)) {
+                    $onlinetext = strip_tags($onlinetextdata->onlinetext);
+                    // Limit length to avoid very long text
+                    if (strlen($onlinetext) > 500) {
+                        $onlinetext = substr($onlinetext, 0, 500) . '...';
+                    }
+                }
+            }
+
             $csvdata[] = [
                 fullname($participant),
                 $participant->idnumber ?? '',
@@ -1959,6 +1974,7 @@ function assign_download_grading_csv($assign, $cm, $context) {
                 $feedback,
                 $status,
                 $submission && $submission->timemodified ? userdate($submission->timemodified) : '',
+                $onlinetext, 
                 $grade && $grade->timemodified ? userdate($grade->timemodified) : ''
             ];
         }

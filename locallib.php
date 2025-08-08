@@ -5474,7 +5474,7 @@ class assign {
         $o = '';
 
         if ($this->can_view_submission($user->id)) {
-            if (has_capability('mod/assign:viewownsubmissionsummary', $this->get_context(), $user, false)) {
+            if (has_capability('mod/assign:view', $this->get_context(), $user, false)) {
                 // The user can view the submission summary.
                 $submissionstatus = $this->get_assign_submission_status_renderable($user, $showlinks);
                 $o .= $this->get_renderer()->render($submissionstatus);
