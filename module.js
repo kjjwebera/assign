@@ -133,11 +133,14 @@ M.mod_assign.init_grading_options = function(Y) {
                 Y.one('form.gradingoptionsform').submit();
             });
         }
+        //batch
 
         var batchfilterelement = Y.one('#id_batchcodefilter');
         if (batchfilterelement) {
-
             batchfilterelement.on('change', function(e) {
+                Y.use('moodle-core-formchangechecker', function() {
+                    M.core_formchangechecker.reset_form_dirty_state();
+                });
                 Y.one('form.gradingoptionsform').submit();
             });
 
