@@ -2534,7 +2534,7 @@ class assign {
             return $SESSION->mod_assign_useridlist[$useridlistkey];
         }
         $filter = get_user_preferences('assign_filter', '');
-        $table = new assign_grading_table($this, 0, $filter, 0, false);
+        $table = new assign_grading_table($this, 0, $filter,0, 0, false);
 
         $useridlist = $table->get_column_data('userid');
 
@@ -4430,12 +4430,14 @@ class assign {
      * @return string
      */
     protected function view_grading_table() {
-        global $USER, $CFG, $SESSION;
+        global $USER, $CFG, $SESSION,$PAGE;
 
         // Include grading options form.
         require_once($CFG->dirroot . '/mod/assign/gradingoptionsform.php');
         require_once($CFG->dirroot . '/mod/assign/quickgradingform.php');
         require_once($CFG->dirroot . '/mod/assign/gradingbatchoperationsform.php');
+        //
+       // $PAGE->requires->js_init_call('M.mod_assign.init_grading_filter_patch', null, false);
         $o = '';
         $cmid = $this->get_course_module()->id;
 
@@ -4582,7 +4584,7 @@ class assign {
 
         // Load and print the table of submissions.
         if ($showquickgrading && $quickgrading) {
-            $gradingtable = new assign_grading_table($this, $perpage, $filter, 0, true);
+            $gradingtable = new assign_grading_table($this, $perpage, $filter,0, 0, true);
             $table = $this->get_renderer()->render($gradingtable);
             $page = optional_param('page', null, PARAM_INT);
             $quickformparams = array('cm'=>$this->get_course_module()->id,
