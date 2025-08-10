@@ -4584,7 +4584,7 @@ class assign {
 
         // Load and print the table of submissions.
         if ($showquickgrading && $quickgrading) {
-            $gradingtable = new assign_grading_table($this, $perpage, $filter,0, 0, true);
+            $gradingtable = new assign_grading_table($this, $perpage, $filter,$batchcodefilter, 0, true);
             $table = $this->get_renderer()->render($gradingtable);
             $page = optional_param('page', null, PARAM_INT);
             $quickformparams = array('cm'=>$this->get_course_module()->id,
