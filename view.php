@@ -43,19 +43,21 @@ $assign = new assign($context, $cm, $course);
 if ($action === 'downloadfiltered') {
     global $CFG;
 
+    // permission check: only graders can export grading data
     require_capability('mod/assign:grade', $context);
+
+    // include required classes
     require_once($CFG->dirroot . '/mod/assign/gradingtable.php');
-    require_once($CFG->libdir . '/csvlib.class.php');
-    
-    // ... [No changes to the top part of the block] ...
-    
-    $perpage = 0; // export all
+    require_once($CFG->libdir . '/csvlib.class.php'); // csv_export_writer
+
+    $perpage = 0; 
     $filter = get_user_preferences('assign_filter', '');
     $page = optional_param('page', 0, PARAM_INT);
     $quickgrading = get_user_preferences('assign_quickgrading', false);
 
     $gradingtable = new assign_grading_table($assign, $perpage, $filter, $page, $quickgrading);
 
+    // If the UI passed any explicit search/sort params in the URL, apply them too:
     $tsort = optional_param('tsort', '', PARAM_ALPHANUMEXT);
     $search = optional_param('search', '', PARAM_RAW);
     if (!empty($tsort)) {
@@ -64,42 +66,63 @@ if ($action === 'downloadfiltered') {
     if (!empty($search)) {
         $gradingtable->set_filter('search', $search);
     }
-    
+
+    // Run setup and query. query_db(0,false) => all filtered rows, no pagination.
     $gradingtable->setup();
     $gradingtable->query_db(0, false);
-    
+
+    // Prepare CSV export
     $export = new csv_export_writer();
     $filename = clean_filename($assign->get_instance()->name . '_filtered_' . date('Y-m-d'));
     $export->set_filename($filename);
 
-    // Set downloading mode first
-    $gradingtable->is_downloading('csv');
+    // Add header row (change/extend columns as needed)
+    $export->add_data([
+        'User ID',
+        'Full name',
+        'ID number',
+        'Email',
+        'Grade',
+        'Submission status',
+        'Time submitted',
+        'Time graded'
+    ]);
 
-    // Get headers - cleaned for CSV
-    // Get headers - use column names directly
-    $headers = array();
-    foreach ($gradingtable->columns as $column => $columnname) {
-        $headers[] = !empty($columnname) ? strip_tags($columnname) : ucfirst(str_replace('_', ' ', $column));
-    }
-    $export->add_data($headers);
-
-    // Use the already filtered rawdata from the table
+    // Add data rows. $gradingtable->rawdata contains rows as the UI expects.
     foreach ($gradingtable->rawdata as $row) {
-        $data = array();
-        foreach ($gradingtable->columns as $column => $columnname) {
-            $formatmethod = 'format_col_' . $column;
-            if (method_exists($gradingtable, $formatmethod)) {
-                $celldata = $gradingtable->$formatmethod($row);
-            } else {
-                $celldata = isset($row->$column) ? $row->$column : '';
-            }
-            // Clean HTML and entities for CSV
-            $data[] = trim(html_entity_decode(strip_tags($celldata), ENT_QUOTES, 'UTF-8'));
-        }
-        $export->add_data($data);
+        $userid = isset($row->userid) ? $row->userid : (isset($row->id) ? $row->id : 0);
+
+        // Some useful fields may be directly on $row (email, idnumber), but not always.
+        $email = isset($row->email) ? $row->email : '';
+        $idnumber = isset($row->idnumber) ? $row->idnumber : '';
+
+        // Full name (uses firstname/lastname from $row)
+        $fullname = fullname($row);
+
+        // Get submission and grade objects to show status/time/grading info reliably.
+        $submission = $assign->get_user_submission($userid, false);
+        $gradeobj = $assign->get_user_grade($userid, false);
+
+        $gradevalue = ($gradeobj && $gradeobj->grade !== null) ? $gradeobj->grade : '';
+        $status = ($submission && !empty($submission->status)) ? $submission->status : '';
+        $timesub = ($submission && !empty($submission->timemodified)) ? userdate($submission->timemodified) : '';
+        $timegraded = ($gradeobj && !empty($gradeobj->timemodified)) ? userdate($gradeobj->timemodified) : '';
+
+        $export->add_data([
+            $userid,
+            $fullname,
+            $idnumber,
+            $email,
+            $gradevalue,
+            $status,
+            $timesub,
+            $timegraded
+        ]);
     }
-    
+
+    // Send file to user (Excel will open CSV fine)
     $export->download_file();
+    // make sure script stops after download
     exit;
 }
 
@@ -108,7 +131,7 @@ $urlparams = array('id' => $id,
                   'rownum' => optional_param('rownum', 0, PARAM_INT),
                   'useridlistid' => optional_param('useridlistid', $assign->get_useridlist_key_id(), PARAM_ALPHANUM));
 
-if ($download && $action == 'grading') {
+                  if ($download && $action == 'grading') {
     error_log('Download requested: ' . $download); // Debug line
     require_capability('mod/assign:grade', $context);
     
@@ -130,4 +153,5 @@ $assign->update_effective_access($USER->id);
 
 // Get the assign class to
 // render the page.
+//started batch code filter for first comment
 echo $assign->view(optional_param('action', '', PARAM_ALPHA));
