@@ -39,12 +39,76 @@ $action = optional_param('action', '', PARAM_ALPHA);
 $rownum = optional_param('rownum', 0, PARAM_INT);
 $download = optional_param('download', '', PARAM_ALPHA);
 $assign = new assign($context, $cm, $course);
+
+if ($action === 'downloadfiltered') {
+    global $CFG;
+
+    require_capability('mod/assign:grade', $context);
+    require_once($CFG->dirroot . '/mod/assign/gradingtable.php');
+    require_once($CFG->libdir . '/csvlib.class.php');
+    
+    // ... [No changes to the top part of the block] ...
+    
+    $perpage = 0; // export all
+    $filter = get_user_preferences('assign_filter', '');
+    $page = optional_param('page', 0, PARAM_INT);
+    $quickgrading = get_user_preferences('assign_quickgrading', false);
+
+    $gradingtable = new assign_grading_table($assign, $perpage, $filter, $page, $quickgrading);
+
+    $tsort = optional_param('tsort', '', PARAM_ALPHANUMEXT);
+    $search = optional_param('search', '', PARAM_RAW);
+    if (!empty($tsort)) {
+        $gradingtable->sort = $tsort;
+    }
+    if (!empty($search)) {
+        $gradingtable->set_filter('search', $search);
+    }
+    
+    $gradingtable->setup();
+    $gradingtable->query_db(0, false);
+    
+    $export = new csv_export_writer();
+    $filename = clean_filename($assign->get_instance()->name . '_filtered_' . date('Y-m-d'));
+    $export->set_filename($filename);
+
+    // Set downloading mode first
+    $gradingtable->is_downloading('csv');
+
+    // Get headers - cleaned for CSV
+    // Get headers - use column names directly
+    $headers = array();
+    foreach ($gradingtable->columns as $column => $columnname) {
+        $headers[] = !empty($columnname) ? strip_tags($columnname) : ucfirst(str_replace('_', ' ', $column));
+    }
+    $export->add_data($headers);
+
+    // Use the already filtered rawdata from the table
+    foreach ($gradingtable->rawdata as $row) {
+        $data = array();
+        foreach ($gradingtable->columns as $column => $columnname) {
+            $formatmethod = 'format_col_' . $column;
+            if (method_exists($gradingtable, $formatmethod)) {
+                $celldata = $gradingtable->$formatmethod($row);
+            } else {
+                $celldata = isset($row->$column) ? $row->$column : '';
+            }
+            // Clean HTML and entities for CSV
+            $data[] = trim(html_entity_decode(strip_tags($celldata), ENT_QUOTES, 'UTF-8'));
+        }
+        $export->add_data($data);
+    }
+    
+    $export->download_file();
+    exit;
+}
+
 $urlparams = array('id' => $id,
                   'action' => optional_param('action', '', PARAM_ALPHA),
                   'rownum' => optional_param('rownum', 0, PARAM_INT),
                   'useridlistid' => optional_param('useridlistid', $assign->get_useridlist_key_id(), PARAM_ALPHANUM));
 
-                  if ($download && $action == 'grading') {
+if ($download && $action == 'grading') {
     error_log('Download requested: ' . $download); // Debug line
     require_capability('mod/assign:grade', $context);
     

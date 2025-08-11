@@ -637,3 +637,5 @@ $string['notsubmittedyet'] = 'Not submitted yet';
 $string['submissionsnotgraded'] = 'Submissions not graded: {$a}';
 
 $string['downloadcsv'] = 'Download grading CSV';
+
+$string['downloadfiltered'] = 'Download filtered data';

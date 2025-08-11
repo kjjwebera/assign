@@ -4590,18 +4590,33 @@ class assign {
         } else {
             $gradingtable = new assign_grading_table($this, $perpage, $filter, 0, false);
             $downloadurl = new moodle_url('/mod/assign/view.php', [
-                'id' => $cmid,
-                'action' => 'grading',
-                'download' => 'csv'
-            ]);
+    'id' => $cmid,
+    'action' => 'grading',
+    'download' => 'csv',
+    'filter' => $filter,
+    'submissionstatus' => optional_param('submissionstatus', '', PARAM_TEXT)
+]);
 
-            $buttonhtml = html_writer::start_div('download-csv-button', ['style' => 'margin: 1em 0;']);
-            $buttonhtml .= html_writer::link(
-                $downloadurl,
-                get_string('downloadcsv', 'assign'),
-                ['class' => 'btn btn-primary', 'style' => 'float: right;']
-            );
-            $buttonhtml .= html_writer::end_div();
+// Button: existing CSV (keeps working)
+$buttonhtml = html_writer::start_div('download-csv-button', ['style' => 'margin: 1em 0;']);
+$buttonhtml .= html_writer::link(
+    $downloadurl,
+    get_string('downloadcsv', 'assign'),
+    ['class' => 'btn btn-primary', 'style' => 'float: right; margin-left: 0.5em;']
+);
+
+// NEW: Download filtered data button (calls action=downloadfiltered)
+$filteredurl = new moodle_url('/mod/assign/view.php', [
+    'id' => $cmid,
+    'action' => 'downloadfiltered'
+]);
+$buttonhtml .= html_writer::link(
+    $filteredurl,
+    get_string('downloadfiltered', 'assign'),
+    ['class' => 'btn btn-secondary', 'style' => 'float: right; margin-right: 0.5em;']
+);
+
+$buttonhtml .= html_writer::end_div();
 
             $o .= $buttonhtml;
             $o .= $this->get_renderer()->render($gradingtable);
