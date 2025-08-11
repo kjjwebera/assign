@@ -636,6 +636,7 @@ $string['nosubmissionsacceptedafter'] = 'No submissions accepted after ';
 $string['notsubmittedyet'] = 'Not submitted yet';
 $string['submissionsnotgraded'] = 'Submissions not graded: {$a}';
 
+//lang for download button
 $string['downloadcsv'] = 'Download grading CSV';
 
 $string['downloadfiltered'] = 'Download filtered data';
