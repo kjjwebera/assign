@@ -636,6 +636,12 @@ $string['nosubmissionsacceptedafter'] = 'No submissions accepted after ';
 $string['notsubmittedyet'] = 'Not submitted yet';
 $string['submissionsnotgraded'] = 'Submissions not graded: {$a}';
 
+
 ///lang strings for Batch code filter in assignment submission page
 $string['noselection'] = 'Please Select Batch Code';
 $string['batchcodefilter'] = 'Batch Code';
+
+//lang for additional fields
+$string['batchcode'] = 'Batch Code';
+$string['centercode'] = 'Center Code';
+$string['studentid'] = 'Student ID';

@@ -23,7 +23,6 @@
  */
 
 defined('MOODLE_INTERNAL') || die();
-
 require_once($CFG->libdir.'/tablelib.php');
 require_once($CFG->libdir.'/gradelib.php');
 require_once($CFG->dirroot.'/mod/assign/locallib.php');
@@ -75,6 +74,54 @@ class assign_grading_table extends table_sql implements renderable {
      * @param bool $quickgrading Is this table wrapped in a quickgrading form?
      * @param string $downloadfilename
      */
+
+    /**
+ * Renders the batchcode column.
+ *
+ * @param stdClass $row
+ * @return string
+ */
+public function col_batchcode(stdClass $row) {
+    if (!empty($row->batchcode)) {
+        // Check if the output is a download (e.g., CSV).
+        if ($this->is_downloading()) {
+            // For downloads, strip the HTML tags to get plain text.
+            return strip_tags($row->batchcode);
+        } else {
+            // For web display, format the text to render HTML.
+            // The third parameter 'null' indicates the Moodle text format, which is often HTML.
+            // Assuming your custom field uses the standard Moodle HTML format.
+            return format_text($row->batchcode, FORMAT_HTML);
+        }
+    }
+    return '';
+}
+
+/**
+ * Renders the centercode column.
+ *
+ * @param stdClass $row
+ * @return string
+ */
+public function col_centercode(stdClass $row) {
+    if (!empty($row->centercode)) {
+        return $this->is_downloading() ? $row->centercode : s($row->centercode);
+    }
+    return '';
+}
+
+/**
+ * Renders the student ID column (username).
+ * @param stdClass $row
+ * @return string
+ */
+public function col_studentid(stdClass $row) {
+    if (!empty($row->studentid)) {
+        return $this->is_downloading() ? $row->studentid : s($row->studentid);
+    }
+    return '';
+}
+
     public function __construct(assign $assignment,
                                 $perpage,
                                 $filter,
@@ -83,6 +130,8 @@ class assign_grading_table extends table_sql implements renderable {
                                 $quickgrading,
                                 $downloadfilename = null) {
         global $CFG, $PAGE, $DB, $USER;
+        $batchcodefieldid = $DB->get_field('user_info_field', 'id', ['shortname' => 'batchcode']);
+        $centercodefieldid = $DB->get_field('user_info_field', 'id', ['shortname' => 'centercode']);
         parent::__construct('mod_assign_grading');
         $this->is_persistent(true);
         $this->assignment = $assignment;
@@ -121,14 +170,8 @@ class assign_grading_table extends table_sql implements renderable {
             $this->rownum = $rowoffset - 1;
         }
 
-  
-	$users = array_keys( $assignment->list_participants($currentgroup, true));
-	/** Customised user list for grade table **/
-	$users = filter_batchcodes_records($users);
-
-	/** Custom code ends here**/
-
-	if (count($users) == 0) {
+        $users = array_keys( $assignment->list_participants($currentgroup, true));
+        if (count($users) == 0) {
             // Insert a record that will never match to the sql is still valid.
             $users[] = -1;
         }
@@ -157,12 +200,30 @@ class assign_grading_table extends table_sql implements renderable {
         $fields .= 'uf.extensionduedate as extensionduedate, ';
         $fields .= 'uf.workflowstate as workflowstate, ';
         $fields .= 'uf.allocatedmarker as allocatedmarker';
+        $fields .= ', u.username as studentid';
+        if ($batchcodefieldid) {
+    $fields .= ', ud1.data AS batchcode';
+}
+if ($centercodefieldid) {
+    $fields .= ', ud2.data AS centercode';
+}
 
         $from = '{user} u
                          LEFT JOIN {assign_submission} s
                                 ON u.id = s.userid
                                AND s.assignment = :assignmentid1
                                AND s.latest = 1 ';
+
+        if ($batchcodefieldid) {
+    $from .= 'LEFT JOIN {user_info_data} ud1
+                      ON u.id = ud1.userid
+                     AND ud1.fieldid = :batchcodefieldid ';
+}
+if ($centercodefieldid) {
+    $from .= 'LEFT JOIN {user_info_data} ud2
+                      ON u.id = ud2.userid
+                     AND ud2.fieldid = :centercodefieldid ';
+}
 
         // For group assignments, there can be a grade with no submission.
         $from .= ' LEFT JOIN {assign_grades} g
@@ -484,6 +545,12 @@ class assign_grading_table extends table_sql implements renderable {
             }
         }
 
+        if ($batchcodefieldid) {
+    $params['batchcodefieldid'] = $batchcodefieldid;
+}
+if ($centercodefieldid) {
+    $params['centercodefieldid'] = $centercodefieldid;
+}
         $this->set_sql($fields, $from, $where, $params);
 
         if ($downloadfilename) {
@@ -500,6 +567,8 @@ class assign_grading_table extends table_sql implements renderable {
                     '<div class="selectall"><label class="accesshide" for="selectall">' . get_string('selectall') . '</label>
                     <input type="checkbox" id="selectall" name="selectall" title="' . get_string('selectall') . '"/></div>';
         }
+        $columns[] = 'studentid';
+$headers[] = get_string('studentid', 'assign'); // or hardcode as 'Student ID'
 
         // User picture.
         if ($this->hasviewblind || !$this->assignment->is_blind_marking()) {
@@ -514,6 +583,15 @@ class assign_grading_table extends table_sql implements renderable {
             // Fullname.
             $columns[] = 'fullname';
             $headers[] = get_string('fullname');
+
+            if ($batchcodefieldid) {
+        $columns[] = 'batchcode';
+        $headers[] = get_string('batchcode', 'assign'); // Add language string or just a hardcoded string.
+    }
+    if ($centercodefieldid) {
+        $columns[] = 'centercode';
+        $headers[] = get_string('centercode', 'assign'); // Add language string or just a hardcoded string.
+    }
 
             // Participant # details if can view real identities.
             if ($this->assignment->is_blind_marking()) {
@@ -1591,7 +1669,7 @@ class assign_grading_table extends table_sql implements renderable {
     public function other_cols($colname, $row) {
         // For extra user fields the result is already in $row.
         if (empty($this->plugincache[$colname])) {
-            return parent::other_cols($colname, $row);
+            return $row->$colname;
         }
 
         // This must be a plugin field.
