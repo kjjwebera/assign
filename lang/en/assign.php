@@ -637,6 +637,7 @@ $string['notsubmittedyet'] = 'Not submitted yet';
 $string['submissionsnotgraded'] = 'Submissions not graded: {$a}';
 
 
+
 ///lang strings for Batch code filter in assignment submission page
 $string['noselection'] = 'Please Select Batch Code';
 $string['batchcodefilter'] = 'Batch Code';
@@ -645,3 +646,8 @@ $string['batchcodefilter'] = 'Batch Code';
 $string['batchcode'] = 'Batch Code';
 $string['centercode'] = 'Center Code';
 $string['studentid'] = 'Student ID';
+
+//lang for download button
+$string['downloadcsv'] = 'Download grading CSV';
+$string['downloadfiltered'] = 'Download filtered data';
+

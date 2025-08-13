@@ -4595,7 +4595,34 @@ class assign {
 
             $o .= $this->get_renderer()->render(new assign_form('quickgradingform', $quickgradingform));
         } else {
+
             $gradingtable = new assign_grading_table($this, $perpage, $filter,$batchcodefilter, 0, false); //added batchfilter options to class
+//Export code starts here
+            //$gradingtable = new assign_grading_table($this, $perpage, $filter, 0, false);
+            $downloadurl = new moodle_url('/mod/assign/view.php', [
+            'id' => $cmid,
+            'action' => 'grading',
+            'download' => 'csv',
+            'filter' => $filter,
+            'submissionstatus' => optional_param('submissionstatus', '', PARAM_TEXT)
+        ]);
+
+        $buttonhtml = '';
+        // Download filtered data button (calls action=downloadfiltered)
+        $filteredurl = new moodle_url('/mod/assign/view.php', [
+            'id' => $cmid,
+            'action' => 'downloadfiltered'
+        ]);
+        $buttonhtml .= html_writer::link(
+            $filteredurl,
+            get_string('downloadfiltered', 'assign'),
+            ['class' => 'btn btn-secondary', 'style' => 'float: right; margin-right: 0.5em;']
+        );
+
+        $buttonhtml .= html_writer::end_div();
+
+            $o .= $buttonhtml;
+//Export code ends here
             $o .= $this->get_renderer()->render($gradingtable);
         }
 
@@ -5481,7 +5508,7 @@ class assign {
         $o = '';
 
         if ($this->can_view_submission($user->id)) {
-            if (has_capability('mod/assign:viewownsubmissionsummary', $this->get_context(), $user, false)) {
+            if (has_capability('mod/assign:view', $this->get_context(), $user, false)) {
                 // The user can view the submission summary.
                 $submissionstatus = $this->get_assign_submission_status_renderable($user, $showlinks);
                 $o .= $this->get_renderer()->render($submissionstatus);
